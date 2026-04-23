@@ -3,96 +3,81 @@ from groq import Groq
 from PyPDF2 import PdfReader
 
 # إعدادات الصفحة
-st.set_page_config(page_title="المعد الذكي للاختبارات", page_icon="🎓", layout="centered")
+st.set_page_config(page_title="المعد الذكي والدردشة الأكاديمية", page_icon="📝", layout="wide")
 
-# التنسيق البصري (CSS)
+# تنسيق CSS
 st.markdown("""
     <style>
-    .stButton>button { width: 100%; border-radius: 10px; background-color: #007bff; color: white; height: 3em; }
-    .stSelectbox, .stSlider { margin-bottom: 20px; }
+    .stButton>button { width: 100%; border-radius: 10px; background-color: #007bff; color: white; }
+    .chat-box { padding: 20px; border-radius: 15px; background-color: #f0f2f6; margin-bottom: 10px; }
     </style>
-    """, unsafe_index=True)
+    """, unsafe_allow_html=True)
 
-st.title("🎓 صانع الاختبارات الذكي")
-st.write("خصص اختبارك بناءً على محاضراتك بضغطة زر.")
-
-# مفتاح API الخاص بك (Groq)
+# مفتاح API الخاص بك
 GROQ_API_KEY = "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"
+client = Groq(api_key=GROQ_API_KEY)
 
-# دالة استخراج النص من الـ PDF
 def extract_text(files):
     text = ""
     for file in files:
-        pdf = PdfReader(file)
-        for page in pdf.pages:
-            text += page.extract_text() + "\n"
+        try:
+            pdf = PdfReader(file)
+            for page in pdf.pages:
+                text += page.extract_text() + "\n"
+        except:
+            pass
     return text
 
-# --- القائمة الجانبية للإعدادات ---
-st.sidebar.header("⚙️ إعدادات الاختبار")
-num_questions = st.sidebar.slider("عدد الأسئلة المطلوبة", 5, 50, 10)
-difficulty = st.sidebar.selectbox("مستوى الصعوبة", ["سهل", "متوسط", "صعب", "تحدي (للمتميزين)"])
-q_types = st.sidebar.multiselect(
-    "أنواع الأسئلة", 
-    ["اختيار من متعدد (MCQ)", "صح وخطأ", "أسئلة مقالية قصيرة", "أكمل الفراغ"],
-    default=["اختيار من متعدد (MCQ)", "صح وخطأ"]
-)
+# --- واجهة رفع الملفات (عامة لكل التطبيق) ---
+st.title("🎓 مساعدك الأكاديمي الشامل")
+lecture_files = st.file_uploader("📂 ارفع المحاضرات أو الملازم أولاً (PDF)", type="pdf", accept_multiple_files=True)
 
-# --- واجهة رفع الملفات ---
-st.subheader("1️⃣ ارفع المحاضرات (إلزامي)")
-lecture_files = st.file_uploader("ارفع الملازم أو المحاضرات هنا", type="pdf", accept_multiple_files=True)
+if lecture_files:
+    lecture_content = extract_text(lecture_files)
+    
+    # إنشاء تبويبين: واحد للاختبارات وواحد للدردشة
+    tab1, tab2 = st.tabs(["✨ توليد اختبار كامل", "💬 اسأل عن معلومة محددة"])
 
-st.subheader("2️⃣ ارفع نماذج سابقة (اختياري)")
-old_exam_files = st.file_uploader("ارفع نماذج سابقة لمحاكاة النمط", type="pdf", accept_multiple_files=True)
+    # --- التبويب الأول: توليد الاختبارات ---
+    with tab1:
+        st.subheader("إعدادات الاختبار")
+        col1, col2 = st.columns(2)
+        with col1:
+            num_q = st.slider("عدد الأسئلة", 5, 50, 10)
+            diff = st.selectbox("المستوى", ["سهل", "متوسط", "صعب"])
+        with col2:
+            types = st.multiselect("الأنواع", ["اختيار من متعدد", "صح وخطأ", "مقالي"], default=["اختيار من متعدد"])
+            old_exams = st.file_uploader("ارفع نمط سابق (اختياري)", type="pdf", accept_multiple_files=True, key="old_ex")
 
-# --- زر التنفيذ ---
-if st.button("توليد الاختبار الآن ✨"):
-    if not lecture_files:
-        st.error("الرجاء رفع ملفات المحاضرات أولاً!")
-    elif not q_types:
-        st.error("الرجاء اختيار نوع واحد على الأقل من الأسئلة.")
-    else:
-        with st.spinner("جاري صياغة الأسئلة بدقة..."):
-            try:
-                client = Groq(api_key=GROQ_API_KEY)
+        if st.button("توليد الاختبار ✨"):
+            with st.spinner("جاري التوليد..."):
+                style = extract_text(old_exams) if old_exams else "أسلوب أكاديمي قياسي"
+                prompt = f"استخرج {num_q} سؤال {diff} من النوع {types} بناءً على هذه المحاضرة: {lecture_content[:15000]}. التزم بهذا النمط إذا وجد: {style[:3000]}. ضع الإجابات في النهاية."
                 
-                # استخراج نصوص الملفات
-                lecture_text = extract_text(lecture_files)
-                exam_style_text = extract_text(old_exam_files) if old_exam_files else "لا يوجد نموذج سابق، استخدم أسلوبك الاحترافي."
-
-                # بناء "الأمر" (Prompt)
-                types_str = "، ".join(q_types)
-                prompt = f"""
-                أنت أستاذ جامعي خبير. قم بإعداد اختبار بناءً على المعايير التالية:
-                1. المادة العلمية: {lecture_text[:15000]}
-                2. نمط المحاكاة (اختياري): {exam_style_text[:4000]}
-                
-                المطلوب:
-                - عدد الأسئلة: {num_questions} سؤال.
-                - مستوى الصعوبة: {difficulty}.
-                - أنواع الأسئلة المطلوبة: {types_str}.
-                
-                تعليمات إضافية:
-                - إذا وجد نمط محاكاة، التزم بأسلوب الصياغة فيه.
-                - إذا لم يوجد نمط، قم بتنويع الأسئلة بشكل احترافي.
-                - اجعل اللغة عربية فصحى وسليمة.
-                - ضع الإجابات النموذجية في قسم منفصل في نهاية الصفحة.
-                """
-
-                # إرسال الطلب لـ Groq
-                completion = client.chat.completions.create(
-                    model="llama-3.3-70b-versatile",
-                    messages=[{"role": "user", "content": prompt}],
-                    temperature=0.6,
-                )
-
-                # عرض النتيجة
-                st.success("تم تجهيز الاختبار!")
+                resp = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
                 st.markdown("---")
-                st.markdown(completion.choices[0].message.content)
-                
-                # زر التحميل
-                st.download_button("تحميل الاختبار كملف نصي", completion.choices[0].message.content, file_name="my_exam.txt")
+                st.markdown(resp.choices[0].message.content)
 
-            except Exception as e:
-                st.error(f"حدث خطأ تقني: {e}")
+    # --- التبويب الثاني: اسأل سؤالاً نصياً ---
+    with tab2:
+        st.subheader("اسأل ذكاء اصطناعي عن محتوى محاضراتك")
+        user_question = st.text_input("اكتب سؤالك هنا (مثلاً: ما هي أهم النقاط في الفصل الثاني؟)")
+        
+        if st.button("إرسال السؤال 🚀"):
+            if user_question:
+                with st.spinner("جاري البحث في المحاضرات..."):
+                    chat_prompt = f"""
+                    أجب على السؤال التالي بناءً فقط على محتوى المحاضرات المرفق.
+                    إذا لم تجد الإجابة، أخبر المستخدم أنها غير موجودة في الملازم.
+                    
+                    المحاضرات: {lecture_content[:20000]}
+                    السؤال: {user_question}
+                    """
+                    resp = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": chat_prompt}])
+                    st.markdown("#### الإجابة:")
+                    st.success(resp.choices[0].message.content)
+            else:
+                st.warning("يرجى كتابة سؤال.")
+
+else:
+    st.info("👋 مرحباً! يرجى رفع ملفات المحاضرات (PDF) للبدء في توليد الأسئلة أو الدردشة معها.")
