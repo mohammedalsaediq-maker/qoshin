@@ -2,69 +2,64 @@ import streamlit as st
 from groq import Groq
 from PyPDF2 import PdfReader
 
-# 1. إعدادات الصفحة - محسنة للجوال
+# 1. إعدادات الصفحة
 st.set_page_config(
-    page_title="مساعدي الأكاديمي",
+    page_title="مساعد رشا القدسي",
     page_icon="🎓",
-    layout="centered", # مناسب أكثر لشاشات الجوال
-    initial_sidebar_state="collapsed" # إخفاء القائمة الجانبية تلقائياً لتوفير مساحة
+    layout="centered",
+    initial_sidebar_state="collapsed"
 )
 
-# 2. تصميم CSS احترافي للجوال
+# 2. تصميم CSS محسن (يدعم الوضع المظلم والفاتح بوضوح عالٍ)
 st.markdown("""
     <style>
     @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
     
     * { font-family: 'Cairo', sans-serif; direction: rtl; }
-    
-    /* خلفية مريحة للعين */
-    .stApp { background-color: #f9f9fb; }
-    
-    /* تصميم الهيدر بشكل مبسط للجوال */
-    .mobile-header {
-        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
-        padding: 20px;
-        border-radius: 0 0 20px 20px;
-        color: white;
-        text-align: center;
-        margin: -60px -20px 20px -20px;
-        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
+
+    /* ضمان وضوح الخط في كل الأوضاع */
+    html, body, [data-testid="stMarkdownContainer"] p {
+        color: var(--text-color);
     }
 
-    /* تكبير الأزرار لتسهيل اللمس */
+    /* الهيدر الجديد بالاسم المطلوب */
+    .mobile-header {
+        background: linear-gradient(135deg, #6d28d9 0%, #4c1d95 100%);
+        padding: 30px 20px;
+        border-radius: 20px;
+        color: white !important;
+        text-align: center;
+        margin-bottom: 25px;
+        box-shadow: 0 4px 15px rgba(109, 40, 217, 0.3);
+    }
+
     .stButton>button {
         width: 100%;
         height: 55px;
         border-radius: 15px;
-        background: #2563eb;
-        color: white;
-        font-size: 18px !important;
+        background: #7c3aed;
+        color: white !important;
         font-weight: bold;
         border: none;
-        margin-top: 10px;
+        transition: 0.3s;
     }
     
-    /* تحسين شكل صناديق الرفع */
-    .stFileUploader {
-        border: 2px dashed #cbd5e1;
-        border-radius: 15px;
-        padding: 10px;
-        background: white;
+    .stButton>button:hover {
+        background: #6d28d9;
+        transform: scale(1.02);
     }
 
-    /* تبسيط التبويبات */
+    /* تحسين شكل تبويبات الجوال */
     .stTabs [data-baseweb="tab-list"] { gap: 10px; }
     .stTabs [data-baseweb="tab"] {
         padding: 10px 15px;
-        background: #eee;
         border-radius: 10px;
-        font-size: 14px;
     }
     </style>
     
     <div class="mobile-header">
-        <h2 style='margin:0;'>🎓 المساعد الأكاديمي</h2>
-        <p style='margin:5px 0 0 0; font-size:14px; opacity:0.9;'>صناعة اختبارات ودردشة ذكية</p>
+        <h2 style='color: white; margin:0;'>🎓 مساعد رشا القدسي</h2>
+        <p style='color: white; margin:5px 0 0 0; font-size:14px; opacity:0.9;'>شريكك الذكي في النجاح الأكاديمي</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -75,54 +70,47 @@ client = Groq(api_key=GROQ_API_KEY)
 def extract_pdf_text(files):
     text = ""
     for file in files:
-        pdf = PdfReader(file)
-        for page in pdf.pages:
-            text += page.extract_text() + "\n"
+        try:
+            pdf = PdfReader(file)
+            for page in pdf.pages:
+                text += page.extract_text() + "\n"
+        except: pass
     return text
 
-# 4. واجهة رفع الملفات
-st.markdown("### 📂 ارفع محاضراتك")
-lectures = st.file_uploader("اختر ملفات الـ PDF", type="pdf", accept_multiple_files=True)
+# 4. واجهة المستخدم
+st.markdown("### 📂 ارفع الملفات التعليمية")
+lectures = st.file_uploader("اختر ملفات PDF للمحاضرات", type="pdf", accept_multiple_files=True)
 
 if lectures:
     lecture_text = extract_pdf_text(lectures)
-    
-    tab1, tab2 = st.tabs(["📝 إنشاء اختبار", "💬 اسأل سؤالاً"])
+    tab1, tab2 = st.tabs(["📝 بناء اختبار", "💬 اسأل رشا"])
 
-    # --- التبويب الأول: الاختبار ---
     with tab1:
-        st.write("---")
-        lang = st.selectbox("لغة الاختبار", ["العربية", "English"])
+        lang = st.radio("اللغة المطلوبة", ["العربية", "English"], horizontal=True)
+        num_q = st.slider("كم سؤالاً تريد؟", 5, 40, 10)
         
-        with st.expander("⚙️ خيارات إضافية"):
-            num_q = st.select_slider("عدد الأسئلة", options=[5, 10, 15, 20, 30])
-            diff = st.select_slider("المستوى", options=["سهل", "متوسط", "صعب"])
-            q_types = st.multiselect("الأنواع", ["MCQ", "صح وخطأ", "مقالي"], default=["MCQ"])
-            patterns = st.file_uploader("نماذج سابقة (اختياري)", type="pdf", accept_multiple_files=True)
-
-        if st.button("توليد الاختبار ✨"):
-            with st.spinner("جاري التوليد..."):
-                style = extract_pdf_text(patterns) if patterns else "Standard"
-                prompt = f"Create {num_q} questions in {lang}. Difficulty: {diff}. Types: {q_types}. Content: {lecture_text[:15000]}. Style Reference: {style[:2000]}. Provide answers."
-                
+        if st.button("توليد الأسئلة الآن ✨"):
+            with st.spinner("جاري صياغة الأسئلة..."):
+                prompt = f"Create {num_q} questions in {lang} from this content: {lecture_text[:15000]}. Show correct answers at the very end."
                 response = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
-                st.markdown("### 📋 النتيجة:")
-                st.markdown(response.choices[0].message.content)
-                st.download_button("📥 حفظ النتيجة", response.choices[0].message.content, "Exam.txt")
+                st.markdown("---")
+                st.info(response.choices[0].message.content)
 
-    # --- التبويب الثاني: الدردشة ---
     with tab2:
-        st.write("---")
-        user_q = st.text_input("اسأل أي شيء عن المحاضرة:")
+        user_q = st.text_input("اطرح سؤالك حول المحاضرة:")
         if st.button("إرسال السؤال 🚀"):
             if user_q:
-                with st.spinner("جاري البحث..."):
-                    prompt = f"Using this content: {lecture_text[:15000]}, Answer this question: {user_q}. Respond in Arabic if not specified."
+                with st.spinner("جاري البحث عن الإجابة..."):
+                    prompt = f"Using this content: {lecture_text[:15000]}, Answer: {user_q}. Reply in Arabic."
                     response = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
-                    st.info(response.choices[0].message.content)
+                    st.success(response.choices[0].message.content)
 
 else:
-    st.info("💡 ارفع ملفات الـ PDF لتبدأ الاستخدام.")
+    st.markdown("""
+        <div style='text-align:center; padding: 40px 20px; color: gray;'>
+            👋 مرحباً بك! يرجى رفع الملازم للبدء في توليد الاختبارات أو الدردشة مع المحتوى.
+        </div>
+    """, unsafe_allow_html=True)
 
 # تذييل الصفحة
-st.markdown("<br><p style='text-align:center; color:#94a3b8; font-size:12px;'>بصمة غرناطة - الحلول الذكية 2026</p>", unsafe_allow_html=True)
+st.markdown("<br><p style='text-align:center; color:#94a3b8; font-size:11px;'>مساعد رشا القدسي الذكي • 2026</p>", unsafe_allow_html=True)
