@@ -2,62 +2,69 @@ import streamlit as st
 from groq import Groq
 from PyPDF2 import PdfReader
 
-# 1. إعدادات الصفحة الأساسية
-st.set_page_config(page_title="المساعد الأكاديمي الذكي", page_icon="🎓", layout="wide")
+# 1. إعدادات الصفحة - محسنة للجوال
+st.set_page_config(
+    page_title="مساعدي الأكاديمي",
+    page_icon="🎓",
+    layout="centered", # مناسب أكثر لشاشات الجوال
+    initial_sidebar_state="collapsed" # إخفاء القائمة الجانبية تلقائياً لتوفير مساحة
+)
 
-# 2. تصميم الواجهة بأسلوب HTML & CSS احترافي
+# 2. تصميم CSS احترافي للجوال
 st.markdown("""
     <style>
-    @import url('https://fonts.googleapis.com/css2?family=Tajawal:wght@400;700&display=swap');
+    @import url('https://fonts.googleapis.com/css2?family=Cairo:wght@400;700&display=swap');
     
-    html, body, [class*="css"] {
-        font-family: 'Tajawal', sans-serif;
-        direction: rtl;
-        text-align: right;
-    }
+    * { font-family: 'Cairo', sans-serif; direction: rtl; }
     
-    .main { background-color: #f0f2f5; }
+    /* خلفية مريحة للعين */
+    .stApp { background-color: #f9f9fb; }
     
-    /* الهيدر الاحترافي */
-    .header-container {
-        background: linear-gradient(135deg, #1e3c72 0%, #2a5298 100%);
-        padding: 3rem;
-        border-radius: 20px;
+    /* تصميم الهيدر بشكل مبسط للجوال */
+    .mobile-header {
+        background: linear-gradient(135deg, #2563eb 0%, #1d4ed8 100%);
+        padding: 20px;
+        border-radius: 0 0 20px 20px;
         color: white;
         text-align: center;
-        margin-bottom: 2rem;
-        box-shadow: 0 10px 20px rgba(0,0,0,0.1);
+        margin: -60px -20px 20px -20px;
+        box-shadow: 0 4px 12px rgba(0,0,0,0.1);
     }
-    
-    /* بطاقات الأقسام */
-    .stCard {
-        background: white;
-        padding: 20px;
-        border-radius: 15px;
-        box-shadow: 0 4px 6px rgba(0,0,0,0.05);
-        margin-bottom: 20px;
-    }
-    
-    /* تحسين الأزرار */
+
+    /* تكبير الأزرار لتسهيل اللمس */
     .stButton>button {
         width: 100%;
-        border-radius: 12px;
-        background: linear-gradient(to right, #00b09b, #96c93d);
+        height: 55px;
+        border-radius: 15px;
+        background: #2563eb;
         color: white;
+        font-size: 18px !important;
         font-weight: bold;
         border: none;
-        padding: 15px;
-        transition: 0.3s;
+        margin-top: 10px;
     }
-    .stButton>button:hover {
-        transform: translateY(-2px);
-        box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+    
+    /* تحسين شكل صناديق الرفع */
+    .stFileUploader {
+        border: 2px dashed #cbd5e1;
+        border-radius: 15px;
+        padding: 10px;
+        background: white;
+    }
+
+    /* تبسيط التبويبات */
+    .stTabs [data-baseweb="tab-list"] { gap: 10px; }
+    .stTabs [data-baseweb="tab"] {
+        padding: 10px 15px;
+        background: #eee;
+        border-radius: 10px;
+        font-size: 14px;
     }
     </style>
     
-    <div class="header-container">
-        <h1>🎓 منصة الاختبارات والدردشة الذكية</h1>
-        <p>بناء الأسئلة والمذاكرة التفاعلية باستخدام ذكاء Groq الخارق</p>
+    <div class="mobile-header">
+        <h2 style='margin:0;'>🎓 المساعد الأكاديمي</h2>
+        <p style='margin:5px 0 0 0; font-size:14px; opacity:0.9;'>صناعة اختبارات ودردشة ذكية</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -73,52 +80,49 @@ def extract_pdf_text(files):
             text += page.extract_text() + "\n"
     return text
 
-# 4. هيكل الصفحة الجانبي (Side Panel)
-st.sidebar.image("https://cdn-icons-png.flaticon.com/512/3413/3413535.png", width=100)
-st.sidebar.title("⚙️ الإعدادات")
-app_mode = st.sidebar.selectbox("اختر الخدمة", ["📝 إنشاء اختبار", "💬 دردشة مع الملازم"])
-lang_opt = st.sidebar.radio("لغة المخرجات", ["العربية", "English"])
-
-# 5. منطقة رفع الملفات
-st.markdown('<div class="stCard">', unsafe_allow_html=True)
-lectures = st.file_uploader("📂 أولاً: ارفع المحاضرات والملازم (PDF)", type="pdf", accept_multiple_files=True)
-st.markdown('</div>', unsafe_allow_html=True)
+# 4. واجهة رفع الملفات
+st.markdown("### 📂 ارفع محاضراتك")
+lectures = st.file_uploader("اختر ملفات الـ PDF", type="pdf", accept_multiple_files=True)
 
 if lectures:
-    text_content = extract_pdf_text(lectures)
+    lecture_text = extract_pdf_text(lectures)
     
-    if app_mode == "📝 إنشاء اختبار":
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            num_q = st.number_input("عدد الأسئلة", 5, 50, 10)
-        with col2:
-            diff = st.selectbox("المستوى", ["سهل", "متوسط", "صعب"])
-        with col3:
-            q_type = st.multiselect("الأنواع", ["MCQ", "صح وخطأ", "مقالي"], default=["MCQ"])
-            
-        patterns = st.file_uploader("ارفع نموذج سابق (اختياري)", type="pdf", accept_multiple_files=True)
+    tab1, tab2 = st.tabs(["📝 إنشاء اختبار", "💬 اسأل سؤالاً"])
+
+    # --- التبويب الأول: الاختبار ---
+    with tab1:
+        st.write("---")
+        lang = st.selectbox("لغة الاختبار", ["العربية", "English"])
         
-        if st.button("صناعة الاختبار ✨"):
+        with st.expander("⚙️ خيارات إضافية"):
+            num_q = st.select_slider("عدد الأسئلة", options=[5, 10, 15, 20, 30])
+            diff = st.select_slider("المستوى", options=["سهل", "متوسط", "صعب"])
+            q_types = st.multiselect("الأنواع", ["MCQ", "صح وخطأ", "مقالي"], default=["MCQ"])
+            patterns = st.file_uploader("نماذج سابقة (اختياري)", type="pdf", accept_multiple_files=True)
+
+        if st.button("توليد الاختبار ✨"):
             with st.spinner("جاري التوليد..."):
-                style_text = extract_pdf_text(patterns) if patterns else "Standard Academic"
-                prompt = f"Create a {num_q} question exam in {lang_opt}. Content: {text_content[:15000]}. Style: {style_text[:3000]}. Difficulty: {diff}. Types: {q_type}. Show answers at the end."
+                style = extract_pdf_text(patterns) if patterns else "Standard"
+                prompt = f"Create {num_q} questions in {lang}. Difficulty: {diff}. Types: {q_types}. Content: {lecture_text[:15000]}. Style Reference: {style[:2000]}. Provide answers."
                 
                 response = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
-                st.success("تم التوليد!")
-                st.markdown(f"```\n{response.choices[0].message.content}\n```")
-                st.download_button("📥 تحميل كملف نصي", response.choices[0].message.content, "Exam.txt")
+                st.markdown("### 📋 النتيجة:")
+                st.markdown(response.choices[0].message.content)
+                st.download_button("📥 حفظ النتيجة", response.choices[0].message.content, "Exam.txt")
 
-    elif app_mode == "💬 دردشة مع الملازم":
-        st.info("اسأل أي سؤال وسأجيبك من واقع الملفات المرفقة.")
-        user_query = st.text_input("اكتب سؤالك هنا...")
-        if st.button("إرسال 🚀"):
-            with st.spinner("جاري البحث..."):
-                chat_prompt = f"Using this content: {text_content[:20000]}, Answer: {user_query}. Respond in {lang_opt}."
-                response = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": chat_prompt}])
-                st.chat_message("assistant").write(response.choices[0].message.content)
+    # --- التبويب الثاني: الدردشة ---
+    with tab2:
+        st.write("---")
+        user_q = st.text_input("اسأل أي شيء عن المحاضرة:")
+        if st.button("إرسال السؤال 🚀"):
+            if user_q:
+                with st.spinner("جاري البحث..."):
+                    prompt = f"Using this content: {lecture_text[:15000]}, Answer this question: {user_q}. Respond in Arabic if not specified."
+                    response = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
+                    st.info(response.choices[0].message.content)
 
 else:
-    st.info("💡 يرجى رفع ملفاتك في الأعلى لتبدأ العمل.")
+    st.info("💡 ارفع ملفات الـ PDF لتبدأ الاستخدام.")
 
-st.markdown('---')
-st.caption("تم التطوير بواسطة ذكاء اصطناعي لدعم مسيرتك الدراسية.")
+# تذييل الصفحة
+st.markdown("<br><p style='text-align:center; color:#94a3b8; font-size:12px;'>بصمة غرناطة - الحلول الذكية 2026</p>", unsafe_allow_html=True)
