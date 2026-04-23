@@ -6,8 +6,7 @@ from PyPDF2 import PdfReader
 st.set_page_config(
     page_title="مساعد رشا القدسي",
     page_icon="🎓",
-    layout="centered",
-    initial_sidebar_state="collapsed"
+    layout="centered"
 )
 
 # 2. تصميم CSS محسن (يدعم الوضع المظلم والفاتح بوضوح عالٍ)
@@ -22,7 +21,6 @@ st.markdown("""
         color: var(--text-color);
     }
 
-    /* الهيدر الجديد بالاسم المطلوب */
     .mobile-header {
         background: linear-gradient(135deg, #6d28d9 0%, #4c1d95 100%);
         padding: 30px 20px;
@@ -41,25 +39,20 @@ st.markdown("""
         color: white !important;
         font-weight: bold;
         border: none;
-        transition: 0.3s;
     }
     
-    .stButton>button:hover {
-        background: #6d28d9;
-        transform: scale(1.02);
-    }
-
-    /* تحسين شكل تبويبات الجوال */
-    .stTabs [data-baseweb="tab-list"] { gap: 10px; }
-    .stTabs [data-baseweb="tab"] {
-        padding: 10px 15px;
+    /* تنسيق خاص لصناديق الرفع لتكون بارزة */
+    .upload-box {
+        border: 1px solid #7c3aed;
         border-radius: 10px;
+        padding: 10px;
+        margin-bottom: 15px;
     }
     </style>
     
     <div class="mobile-header">
         <h2 style='color: white; margin:0;'>🎓 مساعد رشا القدسي</h2>
-        <p style='color: white; margin:5px 0 0 0; font-size:14px; opacity:0.9;'>شريكك الذكي في النجاح الأكاديمي</p>
+        <p style='color: white; margin:5px 0 0 0; font-size:14px; opacity:0.9;'>نظام توليد الاختبارات والدردشة الذكي</p>
     </div>
     """, unsafe_allow_html=True)
 
@@ -77,40 +70,45 @@ def extract_pdf_text(files):
         except: pass
     return text
 
-# 4. واجهة المستخدم
-st.markdown("### 📂 ارفع الملفات التعليمية")
-lectures = st.file_uploader("اختر ملفات PDF للمحاضرات", type="pdf", accept_multiple_files=True)
+# 4. واجهة الرفع الرئيسية (جعلناها واضحة جداً هنا)
+st.markdown("### 📚 الخطوة 1: ارفع ملفاتك")
+lectures = st.file_uploader("1️⃣ ارفع المحاضرات والملازم (إلزامي)", type="pdf", accept_multiple_files=True)
+patterns = st.file_uploader("2️⃣ ارفع نماذج اختبارات سابقة (اختياري لمحاكاة النمط)", type="pdf", accept_multiple_files=True)
 
 if lectures:
     lecture_text = extract_pdf_text(lectures)
+    pattern_text = extract_pdf_text(patterns) if patterns else ""
+    
+    st.markdown("---")
     tab1, tab2 = st.tabs(["📝 بناء اختبار", "💬 اسأل رشا"])
 
     with tab1:
-        lang = st.radio("اللغة المطلوبة", ["العربية", "English"], horizontal=True)
-        num_q = st.slider("كم سؤالاً تريد؟", 5, 40, 10)
+        col1, col2 = st.columns(2)
+        with col1:
+            lang = st.radio("اللغة", ["العربية", "English"], horizontal=True)
+        with col2:
+            num_q = st.number_input("عدد الأسئلة", 5, 50, 10)
+        
+        diff = st.select_slider("مستوى الصعوبة", options=["سهل", "متوسط", "صعب"])
         
         if st.button("توليد الأسئلة الآن ✨"):
-            with st.spinner("جاري صياغة الأسئلة..."):
-                prompt = f"Create {num_q} questions in {lang} from this content: {lecture_text[:15000]}. Show correct answers at the very end."
+            with st.spinner("جاري تحليل المحتوى والنمط..."):
+                prompt = f"""
+                Create {num_q} questions in {lang}. 
+                Difficulty: {diff}. 
+                Source Content: {lecture_text[:15000]}. 
+                Style to Mimic (if exists): {pattern_text[:4000]}. 
+                Provide correct answers at the end.
+                """
                 response = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
-                st.markdown("---")
                 st.info(response.choices[0].message.content)
 
     with tab2:
-        user_q = st.text_input("اطرح سؤالك حول المحاضرة:")
+        user_q = st.text_input("اسأل رشا أي شيء عن المنهج:")
         if st.button("إرسال السؤال 🚀"):
-            if user_q:
-                with st.spinner("جاري البحث عن الإجابة..."):
-                    prompt = f"Using this content: {lecture_text[:15000]}, Answer: {user_q}. Reply in Arabic."
-                    response = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
-                    st.success(response.choices[0].message.content)
-
+            with st.spinner("جاري استخراج الإجابة..."):
+                prompt = f"Using: {lecture_text[:15000]}, Answer: {user_q} in Arabic."
+                response = client.chat.completions.create(model="llama-3.3-70b-versatile", messages=[{"role": "user", "content": prompt}])
+                st.success(response.choices[0].message.content)
 else:
-    st.markdown("""
-        <div style='text-align:center; padding: 40px 20px; color: gray;'>
-            👋 مرحباً بك! يرجى رفع الملازم للبدء في توليد الاختبارات أو الدردشة مع المحتوى.
-        </div>
-    """, unsafe_allow_html=True)
-
-# تذييل الصفحة
-st.markdown("<br><p style='text-align:center; color:#94a3b8; font-size:11px;'>مساعد رشا القدسي الذكي • 2026</p>", unsafe_allow_html=True)
+    st.info("👋 يرجى رفع ملفات المحاضرات أولاً لتفعيل أدوات الذكاء الاصطناعي.")
